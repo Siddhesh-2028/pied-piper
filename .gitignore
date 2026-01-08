@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.so
+*.egg-info/
+.eggs/
+dist/
+build/
+.coverage
+coverage/
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Environments and secrets
+ai/
+venv/
+.env
+.env.*
+
+# Logs
+*.log
+
+# VS Code workspace files
+.vscode/
+.cscode/
+*.code-workspace
+
+# Databases (optional)
+*.sqlite3
