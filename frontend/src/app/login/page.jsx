@@ -1,8 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import useFormStore from "../../store/useFormStore";
+import useAuthStore from "../../store/useAuthStore";
 import TopGraphic from "../../../components/TopGraphic";
 import StepHeader from "../../../components/StepHeader";
 import Step1 from "../../../components/steps/Step1";
@@ -12,6 +14,22 @@ import Step3Confirm from "../../../components/steps/Step3Confirm";
 
 export default function LoginPage() {
   const { currentStep, flowType, setStep } = useFormStore();
+  const { isAuthenticated, isCheckingAuth } = useAuthStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isCheckingAuth && isAuthenticated) {
+      router.push('/dashboard');
+    }
+  }, [isAuthenticated, isCheckingAuth, router]);
+
+  if (isCheckingAuth) {
+     return null; // Or a loading spinner
+  }
+
+  if (isAuthenticated) {
+     return null; // Will redirect
+  }
 
   return (
     <div className="h-screen w-full bg-app-bg relative">
