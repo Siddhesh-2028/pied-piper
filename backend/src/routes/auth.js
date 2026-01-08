@@ -41,7 +41,8 @@ router.get('/google/callback',
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax'
+      sameSite: 'lax',
+      path: '/'
     });
 
     // Redirect to Frontend
@@ -49,6 +50,6 @@ router.get('/google/callback',
   }
 );
 
-router.get('/logout', logout);
+router.post('/logout', logout);
 
 export default router;

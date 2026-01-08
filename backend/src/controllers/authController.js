@@ -119,10 +119,24 @@ export const updateBudget = async (req, res) => {
 };
 
 export const logout = async (req, res) => {
-  res.cookie('token', 'none', {
-    expires: new Date(Date.now() + 10 * 1000), // Expire in 10 seconds
-    httpOnly: true
+  // Clear the token cookie specifically with matching options
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: '/',
   });
 
-  res.status(200).json({ success: true, message: "Logged out successfully" });
+  // Also try to clear any other cookies found in request
+  for(const cookie in req.cookies) {
+    if (cookie === 'token') continue; // Already handled
+    res.clearCookie(cookie, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: '/',
+    });
+  }
+
+  return res.json({ success: true, message: "Logged out successfully" });
 };
