@@ -15,20 +15,6 @@ const AuthGuard = ({ children }) => {
     checkAuth();
   }, [checkAuth]);
 
-  // Trigger Gmail Watch when authenticated AND refresh token is missing from cookies
-  useEffect(() => {
-    const hasRefreshToken = document.cookie.split('; ').find(row => row.startsWith('refreshToken='));
-
-    if (isAuthenticated && !hasRefreshToken) {
-      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/test/watch`, {
-        method: 'POST',
-        credentials: 'include'
-      })
-      .then(res => res.json())
-      .then(data => console.log("Gmail Watch sync:", data))
-      .catch(err => console.error("Gmail Watch error:", err));
-    }
-  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isCheckingAuth) {
