@@ -1,14 +1,10 @@
 # app.py
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from agent import ask_pandas_ai
-import os
 
 app = Flask(__name__)
 CORS(app)
-
-# Ensure chart directory exists so PandasAI doesn't crash
-os.makedirs("static/charts", exist_ok=True)
 
 @app.route('/api/ask', methods=['POST'])
 def chat():
@@ -24,11 +20,6 @@ def chat():
     
     return jsonify(result)
 
-# Route to serve the generated chart images
-@app.route('/charts/<path:filename>')
-def serve_chart(filename):
-    return send_from_directory('static/charts', filename)
-
 if __name__ == '__main__':
-    print("🚀 ARGOS Data Engine (PandasAI) running on http://localhost:5001")
+    print("🚀 ARGOS Data Engine (Text Only) running on http://localhost:5001")
     app.run(port=5001, debug=True)

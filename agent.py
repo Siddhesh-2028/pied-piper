@@ -1,15 +1,11 @@
 # agent.py
-import matplotlib
-# CRITICAL FIX: Must be set BEFORE importing pyplot or pandasai
-matplotlib.use('Agg') 
-
 import os
 import pandas as pd
 from pandasai import SmartDataframe
 from pandasai.llm import LLM
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
-from mock_db import generate_static_data
+from db import get_real_data
 
 load_dotenv()
 
@@ -28,7 +24,13 @@ class PandasAILangChainWrapper(LLM):
         return "google-gemini-wrapper"
 
 # --- 2. SETUP ---
-df = generate_static_data()
+# Fetch data from Real DB
+df = get_real_data()
+
+# Handle empty DB case
+if df.empty:
+    print("⚠️ Warning: No data found in database. Initializing empty DataFrame.")
+    df = pd.DataFrame(columns=["id", "date", "merchant", "category", "amount", "currency", "bankName", "source"])
 
 # Initialize Gemini
 google_llm = ChatGoogleGenerativeAI(
@@ -37,13 +39,12 @@ google_llm = ChatGoogleGenerativeAI(
     temperature=0
 )
 
-# Initialize PandasAI
+# Initialize PandasAI (Text Only Mode)
 agent = SmartDataframe(
     df, 
     config={
         "llm": PandasAILangChainWrapper(google_llm),
-        "save_charts": True,
-        "save_charts_path": "static/charts", 
+        "save_charts": False, # <--- DISABLED CHARTS
         "enable_cache": False,
     }
 )
@@ -53,14 +54,9 @@ def ask_pandas_ai(question):
         # Run the chat
         response = agent.chat(question)
         
-        # Check if response is an image path (PandasAI returns absolute paths sometimes)
-        if isinstance(response, str) and (response.endswith(".png") or response.endswith(".jpg")):
-            # Extract just the filename to serve it via Flask
-            filename = os.path.basename(response)
-            return {"type": "image", "data": f"/charts/{filename}"}
-            
+        # We now ONLY return text. No image path checking needed.
         return {"type": "text", "data": str(response)}
 
     except Exception as e:
         print(f"❌ Error: {e}")
-        return {"type": "error", "data": str(e)}
+        return {"type": "error", "data": "I encountered an error processing that request."}
