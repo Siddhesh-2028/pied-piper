@@ -15,8 +15,6 @@ const Step2Login = () => {
     e.preventDefault();
     if (validateStep()) {
        console.log("Logging in with:", formData);
-       // Proceed to submit or next step
-       // For demo, we might move to confirm or just log
     }
   };
 
@@ -27,10 +25,15 @@ const Step2Login = () => {
         <p className="text-gray-500">Enter your credentials to access your account.</p>
       </div>
 
-      <button className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 p-2.5 rounded-xl hover:bg-gray-50 transition-all font-semibold text-gray-700 mb-4 cursor-pointer">
-        <GoogleIcon />
-        Sign in with Google
-      </button>
+      <form action="http://localhost:4000/auth/google" method="GET">
+        <button 
+          type="submit"
+          className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 p-2.5 rounded-xl hover:bg-gray-50 transition-all font-semibold text-gray-700 mb-4 cursor-pointer"
+        >
+          <GoogleIcon />
+          Sign in with Google
+        </button>
+      </form>
 
       <div className="relative flex py-1 items-center mb-4">
         <div className="grow border-t border-gray-200"></div>
