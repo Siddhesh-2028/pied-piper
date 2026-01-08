@@ -1,5 +1,6 @@
 // src/controllers/splitController.js
 import prisma from '../lib/prisma.js';
+import { sendNudge } from '../services/emailService.js';
 
 // 1. Split a Transaction
 export const splitTransaction = async (req, res) => {
@@ -83,6 +84,60 @@ export const getDebtSummary = async (req, res) => {
 
   } catch (error) {
     console.error("Debt Summary Error:", error);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
+export const nudgeDebtor = async (req, res) => {
+  try {
+    const { splitId, strictness } = req.body; // strictness: 'POLITE', 'FIRM', 'AGGRESSIVE'
+
+    // 1. Get Split Details
+    const split = await prisma.split.findUnique({
+      where: { id: splitId },
+      include: { 
+        transaction: {
+          include: { user: true }
+        }
+      }
+    });
+
+    if (!split) return res.status(404).json({ error: "Split not found" });
+
+    // Ensure only the Payer can nudge
+    if (split.transaction.userId !== req.userId) {
+      return res.status(403).json({ error: "Only the payer can send reminders" });
+    }
+
+    if (!split.owedByEmail) {
+      return res.status(400).json({ error: "Debtor has no email address" });
+    }
+
+    // 2. Send Email
+    const sent = await sendNudge(
+      split.owedByEmail,
+      split.transaction.user.name || "Your Friend",
+      split.amount,
+      split.transaction.merchant || "Expense",
+      strictness
+    );
+
+    if (sent) {
+      // 3. Update DB Stats
+      await prisma.split.update({
+        where: { id: splitId },
+        data: {
+          reminderCount: { increment: 1 },
+          lastRemindedAt: new Date()
+        }
+      });
+      res.json({ success: true, message: "Nudge sent successfully" });
+    } else {
+      res.status(500).json({ error: "Failed to send email" });
+    }
+
+  } catch (error) {
+    console.error("Nudge Error:", error);
     res.status(500).json({ error: "Server Error" });
   }
 };

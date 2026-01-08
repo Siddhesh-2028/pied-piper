@@ -4,8 +4,6 @@ import express from 'express';
 import cors from 'cors';
 import passport from 'passport';
 import cookieParser from 'cookie-parser';
-
-// Local Imports (MUST include .js extension in ESM)
 import configurePassport from './config/passport.js';
 import authRoutes from './routes/auth.js';
 import webhookRoutes from './routes/webhooks.js';

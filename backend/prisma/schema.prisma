@@ -29,6 +29,7 @@ model User {
   // Relations
   transactions  Transaction[] // Expenses paid by this user
   owedSplits    Split[]       @relation("Debtor") // Money this user owes to others
+  recurring     Recurring[]
 }
 
 // ---------------------------------------------------------
@@ -122,4 +123,19 @@ enum SplitStatus {
   PENDING
   PAID
   SETTLED
+}
+
+// Add this model
+model Recurring {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  
+  name          String   // "Rent"
+  amount        Decimal  @db.Decimal(10, 2)
+  frequency     String   @default("MONTHLY") // For now, simple
+  nextDueDate   DateTime
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
 }
