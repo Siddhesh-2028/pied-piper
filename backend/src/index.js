@@ -12,6 +12,9 @@ import webhookRoutes from './routes/webhooks.js';
 import prisma from './lib/prisma.js';
 import { verifyToken } from './middlewares/auth.js';
 import testRoutes from './routes/test.js';
+import transactionRoutes from './routes/transactions.js';
+import contactRoutes from './routes/contacts.js';
+import splitRoutes from './routes/splits.js';
 
 // Config Passport
 configurePassport(passport);
@@ -33,6 +36,9 @@ app.get('/', (req, res) => {
 app.use('/auth', authRoutes);
 app.use('/api/test', testRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/contacts', contactRoutes);
+app.use('/api/splits', splitRoutes);
 
 // Protected Route Example
 app.get('/api/me', verifyToken, async (req, res) => {
