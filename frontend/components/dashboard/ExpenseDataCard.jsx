@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, forwardRef } from 'react';
+import React, { useState, useEffect, forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import DatePicker from 'react-datepicker';
@@ -21,69 +21,100 @@ const CustomDateInput = forwardRef((props, ref) => (
 
 CustomDateInput.displayName = 'CustomDateInput';
 
-const MOCK_DATA = {
-    'Nov 2023': {
-        amount: "₹3451",
-        trend: { value: 4.5, isIncrease: false, isPositive: false },
-        data: [40, 60, 45, 80, 50, 65, 55],
-        footerLabel: "2nd Week"
-    },
-    'Dec 2023': {
-        amount: "₹4200",
-        trend: { value: 12.0, isIncrease: true, isPositive: false },
-        data: [50, 40, 60, 70, 55, 45, 65],
-        footerLabel: "1st Week"
-    },
-    'Jan 2024': {
-        amount: "₹2800",
-        trend: { value: 5.2, isIncrease: false, isPositive: true },
-        data: [30, 35, 40, 30, 45, 35, 40],
-        footerLabel: "3rd Week"
-    },
-    'Jan 2026': {
-        amount: "₹1500",
-        trend: { value: 2.1, isIncrease: true, isPositive: false },
-        data: [20, 25, 30, 20, 35, 25, 30],
-        footerLabel: "1st Week"
-    }
-};
+const MOCK_DATA = {}; // Deprecated: MOCK_DATA removed in favor of real API
+
+/* 
+ * Replaced static MOCK_DATA with API Integration.
+ * The component now fetches real transaction stats from /api/transactions/stats
+ */
+
 
 const ExpenseDataCard = ({
     title = "Expense Data",
     subtitle = "Monthly",
-    // Default props are less relevant now as we rely on internal logic/mock data mostly
-    amount: initialAmount = "₹3450", 
-    trend: initialTrend = { 
-        value: 4.5, 
-        isIncrease: false, 
-        isPositive: false 
-    },
-    data: initialData = [40, 60, 45, 80, 50, 65, 55],
-    footerDate,
-    footerLabel: initialFooterLabel = "2nd Week"
+    footerDate
 }) => {
     const [selectedDate, setSelectedDate] = useState(new Date());
+    const [isLoading, setIsLoading] = useState(false);
+    const [stats, setStats] = useState({
+        amount: "₹0",
+        trend: { value: 0, isIncrease: false, isPositive: true },
+        data: [], 
+        footerLabel: "Total Month",
+        hasData: false
+    });
 
-    // Get data based on selected date
-    const dateKey = format(selectedDate, 'MMM yyyy');
-    const monthlyData = MOCK_DATA[dateKey];
-    
-    // Use mock data if available, otherwise check if it's the initial render date match, else "No Data"
-    // Since we ignore props for dynamic behavior mainly, let's stick to MOCK_DATA or fallback to "No Data" 
-    // unless the date matches the initial props intended date (which we don't strictly know).
-    // Simpler approach: If date is in MOCK_DATA, use it. If not, show "No Data".
-    
-    const hasData = !!monthlyData;
-    const amount = hasData ? monthlyData.amount : "No Data";
-    const trend = hasData ? monthlyData.trend : { value: 0, isIncrease: false, isPositive: true }; // Neutral trend for no data
-    const data = hasData ? monthlyData.data : [];
-    const footerLabel = hasData ? monthlyData.footerLabel : "";
+    useEffect(() => {
+        const fetchStats = async () => {
+            setIsLoading(true);
+            try {
+                const year = selectedDate.getFullYear();
+                const month = selectedDate.getMonth() + 1;
+                
+                const response = await fetch(`http://localhost:4000/api/transactions/stats?month=${month}&year=${year}`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include'
+                });
 
-    // Generate footer date string based on selected date if not provided prop
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Process daily stats into 7 bars for the chart
+                    // Input: Array of ~30 numbers (daily totals)
+                    // Output: Array of 7 numbers (percentages 0-100)
+                    const daily = data.dailyStats || [];
+                    const chunks = 7;
+                    const chunkSize = Math.ceil(daily.length / chunks);
+                    const aggregated = [];
+                    
+                    for (let i = 0; i < chunks; i++) {
+                        const start = i * chunkSize;
+                        const end = start + chunkSize;
+                        const chunkSum = daily.slice(start, end).reduce((a, b) => a + b, 0);
+                        aggregated.push(chunkSum);
+                    }
+
+                    const maxVal = Math.max(...aggregated);
+                    const normalizedData = maxVal > 0 
+                        ? aggregated.map(v => Math.round((v / maxVal) * 100))
+                        : new Array(7).fill(0);
+
+                    setStats({
+                        amount: `₹${data.totalSpent}`,
+                        trend: {
+                            value: parseFloat(data.trend.value),
+                            isIncrease: data.trend.isIncrease,
+                            isPositive: data.trend.isPositive
+                        },
+                        data: normalizedData,
+                        footerLabel: "Monthly Overview",
+                        hasData: true
+                    });
+                } else {
+                    console.error("Failed to fetch stats");
+                    setStats(prev => ({ ...prev, hasData: false }));
+                }
+            } catch (error) {
+                console.error("Error fetching stats:", error);
+                setStats(prev => ({ ...prev, hasData: false }));
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchStats();
+    }, [selectedDate]);
+
+    const { amount, trend, data, hasData, footerLabel } = stats;
+
     const displayedFooterDate = footerDate || (hasData ? `1 - ${format(endOfMonth(selectedDate), "d MMM'yy")}` : "");
 
     return (
-        <motion.div variants={itemVariants} className="bg-[#1C1C1E] p-6 rounded-3xl col-span-1 lg:col-span-2">
+        <motion.div variants={itemVariants} className="bg-[#1C1C1E] p-6 rounded-3xl col-span-1 lg:col-span-2 relative">
+             {isLoading && (
+                <div className="absolute inset-0 bg-black/20 z-10 rounded-3xl backdrop-blur-[1px]" />
+            )}
             <div className="flex justify-between items-start mb-6">
                 <div>
                     <h2 className="text-xl font-bold text-white">{title}</h2>

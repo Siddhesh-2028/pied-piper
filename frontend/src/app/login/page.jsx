@@ -14,22 +14,6 @@ import Step3Confirm from "../../../components/steps/Step3Confirm";
 
 export default function LoginPage() {
   const { currentStep, flowType, setStep } = useFormStore();
-  const { isAuthenticated, isCheckingAuth } = useAuthStore();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isCheckingAuth && isAuthenticated) {
-      router.push('/dashboard');
-    }
-  }, [isAuthenticated, isCheckingAuth, router]);
-
-  if (isCheckingAuth) {
-     return null; // Or a loading spinner
-  }
-
-  if (isAuthenticated) {
-     return null; // Will redirect
-  }
 
   return (
     <div className="h-screen w-full bg-app-bg relative">

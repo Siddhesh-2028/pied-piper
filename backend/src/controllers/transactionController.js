@@ -38,37 +38,129 @@ export const getTransactions = async (req, res) => {
   }
 };
 
-// 2. Get Dashboard Stats (Total Spent, Recent Activity)
+// 2. Get Dashboard Stats (Total Spent, Recent Activity, Monthly Chart)
 export const getDashboardStats = async (req, res) => {
   try {
+    const { month, year } = req.query;
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    // Use provided month/year or default to current
+    const currentYear = year ? parseInt(year) : now.getFullYear();
+    const currentMonth = month ? parseInt(month) - 1 : now.getMonth(); // 0-indexed in JS Date
 
-    // Aggregate: Total Spent This Month
-    const aggregate = await prisma.transaction.aggregate({
+    const startOfMonth = new Date(currentYear, currentMonth, 1);
+    const endOfMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
+
+    const startOfPrevMonth = new Date(currentYear, currentMonth - 1, 1);
+    const endOfPrevMonth = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
+
+    // 1. Total Spent This Month
+    const currentMonthAgg = await prisma.transaction.aggregate({
       _sum: { amount: true },
       where: {
         userId: req.userId,
-        date: { gte: startOfMonth }
+        date: {
+          gte: startOfMonth,
+          lte: endOfMonth
+        }
       }
     });
 
-    // Group By Category (for Pie Chart)
+    // 2. Total Spent Previous Month (For Trend)
+    const prevMonthAgg = await prisma.transaction.aggregate({
+      _sum: { amount: true },
+      where: {
+        userId: req.userId,
+        date: {
+          gte: startOfPrevMonth,
+          lte: endOfPrevMonth
+        }
+      }
+    });
+
+    const currentTotal = currentMonthAgg._sum.amount ? parseFloat(currentMonthAgg._sum.amount) : 0;
+    const prevTotal = prevMonthAgg._sum.amount ? parseFloat(prevMonthAgg._sum.amount) : 0;
+
+    // Calculate Trend
+    let trendValue = 0;
+    let isIncrease = false;
+    if (prevTotal > 0) {
+      trendValue = ((currentTotal - prevTotal) / prevTotal) * 100;
+      isIncrease = trendValue > 0;
+    }
+
+    // 3. Category Breakdown
     const categoryStats = await prisma.transaction.groupBy({
       by: ['category'],
       _sum: { amount: true },
       where: {
         userId: req.userId,
-        date: { gte: startOfMonth }
+        date: {
+          gte: startOfMonth,
+          lte: endOfMonth
+        }
       },
     });
 
+    // 4. Daily Stats for Chart
+    // Prisma doesn't support grouping by date part easily in all DBs without raw query.
+    // Fetching all transactions for the month implies lighter load than raw query sometimes, 
+    // but raw query is better for aggregation. Let's use raw query or js grouping.
+    // Since it's a personal expense tracker, volume per month is likely low (<1000). JS grouping is fine.
+    
+    const transactions = await prisma.transaction.findMany({
+      where: {
+        userId: req.userId,
+        date: {
+          gte: startOfMonth,
+          lte: endOfMonth
+        }
+      },
+      select: {
+        date: true,
+        amount: true
+      }
+    });
+
+    // Bucket into days or weeks ( ExpenseDataCard MOCK_DATA has ~7 points, likely weekly or simplified daily)
+    // Let's create an array of values for the chart. 
+    // If the mock data has ~7 points, maybe we can aggregate into, say, every 3-4 days or just return daily sums.
+    // However, the card might expect specific number of points?
+    // The previous MOCK_DATA had 7 points. Let's try to give daily data or weekly.
+    // Let's stick to daily data for better granularity if the chart supports it, or aggregate to 4 weeks.
+    // The mock data keys were 'Nov 2023' etc.
+    // Let's return the daily series and let frontend handle visualization.
+    
+    // Initialize day map
+    const daysInMonth = endOfMonth.getDate();
+    const dailyData = new Array(daysInMonth).fill(0);
+
+    transactions.forEach(t => {
+      const day = new Date(t.date).getDate(); // 1-31
+      if (day >= 1 && day <= daysInMonth) {
+        dailyData[day - 1] += parseFloat(t.amount);
+      }
+    });
+
+    // To match the mock data style (array of numbers), we can just return dailyData.
+    // Or if we want to compress it to 7 points (like weekly segments), we can do that too.
+    // 30 days / 7 ≈ 4 days per point.
+    // Let's just return daily stats and let's update frontend to maybe use "Total per week" or just "Daily trend".
+    // For now, returning full daily array might be most flexible.
+    
     res.json({
-      totalSpent: aggregate._sum.amount || 0,
+      totalSpent: currentTotal,
+      prevTotalSpent: prevTotal,
+      trend: {
+        value: Math.abs(trendValue).toFixed(1),
+        isIncrease: isIncrease,
+        isPositive: !isIncrease // Assuming spending less (decrease) is positive for expenses
+      },
       categoryBreakdown: categoryStats.map(stat => ({
         category: stat.category,
-        amount: stat._sum.amount || 0
-      }))
+        amount: parseFloat(stat._sum.amount || 0)
+      })),
+      dailyStats: dailyData
     });
   } catch (error) {
     console.error("Stats Error:", error);

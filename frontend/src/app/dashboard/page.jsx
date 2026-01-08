@@ -1,9 +1,7 @@
 "use client";
 
-import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React from 'react';
 import { motion } from 'framer-motion';
-import useAuthStore from '../../store/useAuthStore';
 import { containerVariants } from '../../../components/dashboard/variants';
 import Sidebar from '../../../components/dashboard/Sidebar';
 import Header from '../../../components/dashboard/Header';
@@ -14,27 +12,7 @@ import RightStatsColumn from '../../../components/dashboard/RightStatsColumn';
 import TransactionsTable from '../../../components/dashboard/TransactionsTable';
 
 export default function Dashboard() {
-  const { isAuthenticated, isCheckingAuth } = useAuthStore();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isCheckingAuth && !isAuthenticated) {
-      router.push('/login');
-    }
-  }, [isCheckingAuth, isAuthenticated, router]);
-
-  if (isCheckingAuth) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#0A0A0A] text-white">
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return null; // Will redirect via useEffect
-  }
-
+  
   return (
     <div className="min-h-screen flex flex-col bg-[#0A0A0A] font-san">
       <Sidebar />
